@@ -1,29 +1,27 @@
 const jwt = require("jsonwebtoken");
-const User = require("../models/User.model"); 
-const Business = require("../models/Business.model"); 
 
 const authenticate = async (req, res, next) => {
-  const token = req.headers.authorization?.split(" ")[1]; // Obtener el token del encabezado Authorization
-  if (!token) {
-    return res.status(401).json({ errorMessage: "No token provided" });
-  }
-  try {
-    const decoded = jwt.verify(token, process.env.TOKEN_SECRET);
-    let user = await User.findById(decoded._id);
-    if (!user) {
-      user = await Business.findById(decoded._id);
+    try {
+        const tokenArr = req.headers.authorization.split(" ")
+        // console.log(tokenArr)
+        const token = tokenArr[1]
+    
+        const payload = jwt.verify(token, process.env.TOKEN_SECRET)
+        // console.log(payload)
+    
+        // su el verify falla, entra en el catch
+        // 1. el token no existe
+        // 2. el token es invalido
+        // 3. el token ha expirado
+    
+        // pasar a la proxima ruta la información del usuario logeado
+        req.payload = payload
+    
+        next() // continua con la ruta
+      } catch (error) {
+        res.status(401).json({errorMessage: "Token no existe o no es valido"})
+      }
     }
-    if (!user) {
-      return res.status(401).json({ errorMessage: "Invalid token" });
-    }
-    req.user = {
-      _id: user._id,
-      email: user.email,
-      userType: user.userType, 
-    };
-    next(); // Continuar a la siguiente función de middleware o ruta
-  } catch (error) {
-    return res.status(401).json({ errorMessage: "Invalid token" });
-  }
-};
+    
+
 module.exports = authenticate;

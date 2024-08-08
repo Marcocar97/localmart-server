@@ -153,8 +153,7 @@ router.post("/login", async (req, res, next) => {
 
 // Ruta para verificar el token
 router.get("/verify", authenticate, (req, res, next) => {
-    const {user} = req;
-  res.status(200).json({user});
+  res.status(200).json(req.payload);
 });
 
 // RUTAS DE USERS
