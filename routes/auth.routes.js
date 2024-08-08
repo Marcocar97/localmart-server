@@ -123,11 +123,9 @@ router.post("/login", async (req, res, next) => {
         ? await Business.findOne({ email: email })
         : await User.findOne({ email: email });
     if (!foundUser) {
-      return res
-        .status(400)
-        .json({
-          errorMessage: "Usuario no registrado con ese correo electrónico",
-        });
+      return res.status(400).json({
+        errorMessage: "Usuario no registrado con ese correo electrónico",
+      });
     }
     const isPasswordCorrect = await bcrypt.compare(
       password,
@@ -139,7 +137,7 @@ router.post("/login", async (req, res, next) => {
     const payload = {
       _id: foundUser._id,
       email: foundUser.email,
-      userType: userType, 
+      userType: userType,
     };
     const authToken = jwt.sign(payload, process.env.TOKEN_SECRET, {
       algorithm: "HS256",
@@ -161,7 +159,7 @@ router.get("/verify", authenticate, (req, res, next) => {
 // /user-profile .. Obtener perfil del usuario
 router.get("/user-profile", authenticate, async (req, res, next) => {
   try {
-    const user = await User.findById(req.user._id);
+    const user = await User.findById(req.payload._id);
     if (!user) {
       return res.status(404).json({ errorMessage: "User not found" });
     }
@@ -201,7 +199,7 @@ router.put("/user-profile", authenticate, async (req, res, next) => {
 
 router.delete("/user-profile", authenticate, async (req, res, next) => {
   try {
-    await User.findByIdAndDelete(req.user._id);
+    await User.findByIdAndDelete(req.payload._id);
     res.sendStatus(204);
   } catch (error) {
     next(error);
@@ -214,7 +212,7 @@ router.delete("/user-profile", authenticate, async (req, res, next) => {
 
 router.get("/business-profile", authenticate, async (req, res, next) => {
   try {
-    const business = await Business.findById(req.user._id);
+    const business = await Business.findById(req.payload._id);
     if (!business) {
       return res.status(404).json({ errorMessage: "Business not found" });
     }
@@ -230,7 +228,7 @@ router.put("/business-profile", authenticate, async (req, res, next) => {
   const { businessName, description, category, location, logo } = req.body;
   try {
     const updatedBusiness = await Business.findByIdAndUpdate(
-      req.user._id,
+      req.payload._id,
       { businessName, description, category, location, logo },
       { new: true }
     );
@@ -247,7 +245,7 @@ router.put("/business-profile", authenticate, async (req, res, next) => {
 
 router.delete("/business-profile", authenticate, async (req, res, next) => {
   try {
-    await Business.findByIdAndDelete(req.user._id);
+    await Business.findByIdAndDelete(req.payload._id);
     res.sendStatus(204);
   } catch (error) {
     next(error);
@@ -258,22 +256,48 @@ router.delete("/business-profile", authenticate, async (req, res, next) => {
 
 // /business-offer .. Agrega una nueva oferta
 
-router.post("/business-offer", authenticate, async (req, res, next) => {
-  const { offerName, description, availability, schedules, image } = req.body;
+router.post("/business-offers", authenticate, async (req, res) => {
   try {
+    const { offerName, description, availability, schedules, image } = req.body;
+    const businessId = req.payload._id;
+
+    if (!offerName || !description || !availability || !schedules) {
+      return res.status(400).json({ message: "All fields are required" });
+    }
+
     const newOffer = await Offer.create({
       offerName,
       description,
       availability,
       schedules,
       image,
-      business: req.user._id,
+      business: businessId,
     });
     res.status(201).json(newOffer);
   } catch (error) {
-    next(error);
+    console.error("Error creating offer:", error);
+    res.status(500).json({ message: "Internal server error", error });
   }
 });
+
+// Ver una oferta
+
+router.get(
+  "/business-offers/:offerId",
+  authenticate,
+  async (req, res, next) => {
+    const { offerId } = req.params;
+    try {
+      const offer = await Offer.findById(offerId);
+      if (!offer) {
+        return res.status(404).json({ errorMessage: "Offer not found" });
+      }
+      res.status(200).json(offer);
+    } catch (error) {
+      next(error);
+    }
+  }
+);
 
 // /business-offer .. Actualizar una oferta
 
@@ -319,7 +343,7 @@ router.delete(
 
 router.get("/business-offers", authenticate, async (req, res, next) => {
   try {
-    const offers = await Offer.find({ business: req.user._id });
+    const offers = await Offer.find({ business: req.payload._id });
     res.status(200).json(offers);
   } catch (error) {
     next(error);
