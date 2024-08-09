@@ -172,18 +172,12 @@ router.get("/user-profile", authenticate, async (req, res, next) => {
 // /user-profile .. Actualizar perfil del usuario
 
 router.put("/user-profile", authenticate, async (req, res, next) => {
-  const { name, email, password } = req.body;
-  if (!name || !email || !password) {
-    return res
-      .status(400)
-      .json({ errorMessage: "Name, email, and password are required" });
-  }
+  const { name, email } = req.body;
+
   try {
-    const salt = await bcrypt.genSalt(12);
-    const hashedPassword = await bcrypt.hash(password, salt);
     const updatedUser = await User.findByIdAndUpdate(
-      req.user._id,
-      { name, email, password: hashedPassword },
+      req.payload._id,
+      { name, email },
       { new: true }
     );
     if (!updatedUser) {
@@ -382,10 +376,11 @@ router.get("/user-offers/:offerId", async (req, res, next) => {
 
 router.get("/user-reservas", authenticate, async (req, res, next) => {
   try {
-    const reservas = await Reserva.find({ User: req.user._id }).populate(
-      "Offer"
-    );
-    res.status(200).json(reservas);
+    const reservations = await Reserva.find({ user: req.payload._id })
+      .populate(`offer`)
+      .populate(`user`);
+    console.log(reservations);
+    res.status(200).json(reservations);
   } catch (error) {
     next(error);
   }
@@ -409,7 +404,7 @@ router.post("/user-reservas", authenticate, async (req, res, next) => {
     const newReserva = await Reserva.create({
       confirmationNumber,
       offer: offerId,
-      user: req.user._id,
+      user: req.payload._id,
     });
     res.status(201).json(newReserva);
   } catch (error) {
@@ -451,6 +446,24 @@ router.delete(
     }
   }
 );
+
+// Verificador de reservas por numero
+
+router.get("/reservas/:confirmationNumber", async (req, res) => {
+  try {
+    const { confirmationNumber } = req.params;
+    const reservation = await Reserva.findOne({ confirmationNumber })
+      .populate("offer")
+      .populate("user");
+    if (!reservation) {
+      return res.status(404).json({ message: "Reservation not found" });
+    }
+    res.status(200).json(reservation);
+  } catch (error) {
+    console.error("Error fetching reservation", error);
+    res.status(500).json({ message: "Internal Server Error" });
+  }
+});
 
 // user-favorites ... Obten las ofertas favoritas del usuario
 
