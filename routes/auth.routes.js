@@ -6,6 +6,7 @@ const Offer = require("../models/Offer.model");
 const Reserva = require("../models/Reservation.model");
 const jwt = require("jsonwebtoken");
 const authenticate = require("../middlewares/auth.middlewares");
+const upload = require("../middlewares/cloudinary.config")
 
 const router = express.Router();
 
@@ -46,7 +47,7 @@ router.post("/signup/user", async (req, res, next) => {
     next(error);
   }
 }); // POST "/api/auth/signup/business" => registrar el negocio
-router.post("/signup/business", async (req, res, next) => {
+router.post("/signup/business", upload.single(`logo`), async (req, res, next) => {
   console.log(req.body);
   const {
     email,
@@ -55,8 +56,8 @@ router.post("/signup/business", async (req, res, next) => {
     description,
     category,
     location,
-    logo,
-  } = req.body; // validaciones de backend
+  } = req.body; 
+  const logo = req.file ? req.file.path:null;
   if (
     !email ||
     !password ||
@@ -89,6 +90,8 @@ router.post("/signup/business", async (req, res, next) => {
       });
       return;
     }
+
+    
     const salt = await bcrypt.genSalt(12);
     const hashPassword = await bcrypt.hash(password, salt);
     await Business.create({
@@ -250,14 +253,16 @@ router.delete("/business-profile", authenticate, async (req, res, next) => {
 
 // /business-offer .. Agrega una nueva oferta
 
-router.post("/business-offers", authenticate, async (req, res) => {
+router.post("/business-offers", upload.single(`image`), authenticate, async (req, res) => {
   try {
-    const { offerName, description, availability, schedules, image } = req.body;
+    const { offerName, description, availability, schedules } = req.body;
     const businessId = req.payload._id;
 
     if (!offerName || !description || !availability || !schedules) {
       return res.status(400).json({ message: "All fields are required" });
     }
+
+    const image = req.file ? req.file.path:null;
 
     const newOffer = await Offer.create({
       offerName,
@@ -469,49 +474,35 @@ router.get("/reservas/:confirmationNumber", async (req, res) => {
 
 router.get("/user-favorites", authenticate, async (req, res, next) => {
   try {
-    const user = await User.findById(req.user._id).populate("favorites");
+    const user = await User.findById(req.payload._id).populate("favorites");
     res.status(200).json(user.favorites);
   } catch (error) {
     next(error);
   }
 });
 
-// user-favorites/:offerId ... Agregar una oferta favorita
+// user-favorites/:offerId ... Agragar o eliminar una oferta a favoritos
+
 
 router.patch(
   "/user-favorites/:offerId",
   authenticate,
   async (req, res, next) => {
-    const { offerId } = req.params;
     try {
-      const user = await User.findById(req.user._id);
-      if (!user.favorites.includes(offerId)) {
+      const userId = req.payload._id;
+      const { offerId } = req.params;
+      const user = await User.findById(userId);
+      const alreadyFavorited = user.favorites.includes(offerId);
+      if (alreadyFavorited) {
+        user.favorites.pull(offerId);
+      } else {
         user.favorites.push(offerId);
-        await user.save();
       }
-      res.status(200).json(user);
-    } catch (error) {
-      next(error);
-    }
-  }
-);
-
-// user-favorites/:offerId ... Eliminar una oferta favorita
-
-router.patch(
-  "/user-favorites/:offerId",
-  authenticate,
-  async (req, res, next) => {
-    const { offerId } = req.params;
-    try {
-      const user = await User.findById(req.user._id);
-      user.favorites.pull(offerId);
       await user.save();
-      res.status(200).json(user);
+      res.status(200).json({ favorites: user.favorites });
     } catch (error) {
-      next(error);
+      next(error)
     }
   }
 );
-
 module.exports = router;

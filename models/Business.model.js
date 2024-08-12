@@ -21,4 +21,5 @@ const businessSchema = new Schema(
   { timestamps: true }
 );
 const Business = model("Business", businessSchema);
+
 module.exports = Business;
