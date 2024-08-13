@@ -355,7 +355,7 @@ router.get("/business-offers", authenticate, async (req, res, next) => {
 
 router.get("/user-offers", async (req, res, next) => {
   try {
-    const offers = await Offer.find();
+    const offers = await Offer.find().populate("Business");
     res.status(200).json(offers);
   } catch (error) {
     next(error);
