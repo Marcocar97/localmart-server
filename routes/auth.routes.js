@@ -367,7 +367,7 @@ router.get("/user-offers", async (req, res, next) => {
 router.get("/user-offers/:offerId", async (req, res, next) => {
   const { offerId } = req.params;
   try {
-    const offer = await Offer.findById(offerId);
+    const offer = await Offer.findById(offerId).populate("Business");
     if (!offer) {
       return res.status(404).json({ errorMessage: "Offer not found" });
     }
