@@ -6,7 +6,7 @@ const Offer = require("../models/Offer.model");
 const Reserva = require("../models/Reservation.model");
 const jwt = require("jsonwebtoken");
 const authenticate = require("../middlewares/auth.middlewares");
-const upload = require("../middlewares/cloudinary.config")
+const upload = require("../middlewares/cloudinary.config");
 
 const router = express.Router();
 
@@ -411,6 +411,7 @@ router.post("/user-reservas", authenticate, async (req, res, next) => {
       offer: offerId,
       user: req.payload._id,
     });
+
     res.status(201).json(newReserva);
   } catch (error) {
     next(error);
